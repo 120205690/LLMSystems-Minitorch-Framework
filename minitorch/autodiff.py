@@ -102,8 +102,23 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
     """
     # BEGIN ASSIGN1_1
     # TODO
-    
-    raise NotImplementedError("Task Autodiff Not Implemented Yet")
+    topoList = []
+    visited = []
+    def explore(u, topoList):
+        visited.append(u.unique_id)
+        if u.is_constant():
+            return
+        if u.is_leaf():
+            topoList.append(u)
+            return
+        for v in u.parents:
+            if v.unique_id not in visited:
+                explore(v, topoList) 
+        if not u.is_constant():
+            topoList.append(u)
+        return
+    explore(variable, topoList)
+    return topoList[::-1]
     # END ASSIGN1_1
 
 
