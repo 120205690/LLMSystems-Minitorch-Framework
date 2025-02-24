@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable, List, Tuple
 
 from typing_extensions import Protocol
-
+import pdb 
 
 def central_difference(f: Any, *vals: Any, arg: int = 0, epsilon: float = 1e-6) -> Any:
     r"""
@@ -111,7 +111,11 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
         if u.is_leaf():
             topoList.append(u)
             return
+        
+        
         for v in u.parents:
+            if v.unique_id == u.unique_id:
+                continue
             if v.unique_id not in visited:
                 explore(v, topoList) 
         if not u.is_constant():
@@ -120,7 +124,6 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
     explore(variable, topoList)
     return topoList[::-1]
     # END ASSIGN1_1
-
 
 def backpropagate(variable: Variable, deriv: Any) -> None:
     """
@@ -135,9 +138,39 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     """
     # BEGIN ASSIGN1_1
     # TODO
-   
-    raise NotImplementedError("Task Autodiff Not Implemented Yet")
-    # END ASSIGN1_1
+    
+    def add_grad(prev_grad, grad):
+        if prev_grad is None:
+            return grad
+        else:
+            return prev_grad + grad
+    def find_index(node):
+        return topoID.index(node.unique_id)
+    def verify_no_constant_node(topoList):
+        for node in topoList:
+            assert not node.is_constant()
+            
+    topoList = topological_sort(variable)
+    topoID = [node.unique_id for node in topoList]
+    gradList = [None for node in topoList]
+    gradList[find_index(variable)] = deriv
+    leafNodes = []
+    verify_no_constant_node(topoList)
+    for node in topoList:
+        if node.is_leaf():
+            leafNodes.append(node)
+        else:
+            outgrad = gradList[find_index(node)]
+            assert (outgrad is not None)
+            parentGradIter = node.chain_rule(outgrad)
+            for parentnode, parentgrad in parentGradIter:
+                if (parentnode.is_constant()):
+                    continue
+                parentgrad = add_grad(gradList[find_index(parentnode)], parentgrad)
+                gradList[find_index(parentnode)] = parentgrad
+                
+    for node in leafNodes:
+        node.accumulate_derivative(gradList[find_index(node)])
 
 
 @dataclass
