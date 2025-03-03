@@ -147,7 +147,7 @@ __device__ void to_index(int ordinal, const int* shape, int* out_index, int num_
    *
    * Returns:
    *    None (Fills in out_index)
-  */
+   */
     int cur_ord = ordinal;
     for (int i = num_dims - 1; i >= 0; --i) {
         int sh = shape[i];
@@ -166,7 +166,6 @@ __device__ void broadcast_index(const int* big_index, const int* big_shape, cons
    *    big_index: multidimensional index of bigger tensor
    *    big_shape: tensor shape of bigger tensor
    *    shape: tensor shape of smaller tensor
-   *    nums_big_dims: number of dimensions in bigger tensor
    *    out_index: multidimensional index of smaller tensor
    *    nums_big_dims: number of dimensions in bigger tensor
    *    num_dims: number of dimensions in smaller tensor
@@ -196,7 +195,7 @@ __global__ void MatrixMultiplyKernel(
     const int* b_strides
 ) {
   /**
-   * Multiply two (compact) matrices into an output (also comapct) matrix. Matrix a and b are both in a batch
+   * Multiply two (compact) matrices into an output (also compact) matrix. Matrix a and b are both in a batch
    * format, with shape [batch_size, m, n], [batch_size, n, p].
    * Requirements:
    * - All data must be first moved to shared memory.
@@ -241,7 +240,9 @@ __global__ void MatrixMultiplyKernel(
     // 6. Synchronize to make sure all threads are done computing the output tile for (row, col)
     // 7. Write the output to global memory
 
-    assert(false && "Not Implemented");
+    //Task1
+    
+    //assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
 
@@ -294,7 +295,20 @@ __global__ void mapKernel(
     // 5. Calculate the position of element in out_array according to out_index and out_strides
     // 6. Apply the unary function to the input element and write the output to the out memory
     
-    assert(false && "Not Implemented");
+
+    //Task 1
+    int position = blockIdx.x*blockDim.x + threadIdx.x;
+    if (position >= out_size) return;
+    //Task 2
+    to_index(position, out_shape, out_index, shape_size);
+    //Task 3
+    broadcast_index(out_index, out_shape, in_shape, in_index, shape_size, shape_size);
+    //Task 4
+    int in_position = index_to_position(in_index, in_strides, shape_size);
+    //Task 5
+    // int out_position = index_to_position(out_index, out_strides, shape_size);
+    //Task 6
+    out[position] = fn(fn_id, in_storage[in_position]);
     /// END ASSIGN1_2
 }
 
@@ -346,12 +360,24 @@ __global__ void reduceKernel(
     /// BEGIN ASSIGN1_2
     /// TODO
     // 1. Define the position of the output element that this thread or this block will write to
+    int out_pos = blockIdx.x * blockDim.x + threadIdx.x;
+    if (out_pos >= out_size) return;
+
     // 2. Convert the out_pos to the out_index according to out_shape
+    to_index(out_pos, out_shape, out_index, shape_size);
+
     // 3. Initialize the reduce_value to the output element
+    float result = reduce_value;
+    //Check this
     // 4. Iterate over the reduce_dim dimension of the input array to compute the reduced value
+    for (int i = 0; i < a_shape[reduce_dim]; ++i) {
+        out_index[reduce_dim] = i;
+        int a_position = index_to_position(out_index, a_strides, shape_size);
+        result = fn(fn_id, result, a_storage[a_position]);
+    }
+
     // 5. Write the reduced value to out memory
-    
-    assert(false && "Not Implemented");
+    out[out_pos] = result;
     /// END ASSIGN1_2
 }
 
@@ -404,7 +430,7 @@ __global__ void zipKernel(
     int out_index[MAX_DIMS];
     int a_index[MAX_DIMS];
     int b_index[MAX_DIMS];
-
+    //Zip function
     /// BEGIN ASSIGN1_2
     /// TODO
     // Hints:
@@ -417,7 +443,24 @@ __global__ void zipKernel(
     // 7.Calculate the position of element in b_array according to b_index and b_strides
     // 8. Apply the binary function to the input elements in a_array & b_array and write the output to the out memory
     
-    assert(false && "Not Implemented");
+    //Task1
+    int thread_pos = blockIdx.x*blockDim.x + threadIdx.x;
+    if (thread_pos>=out_size) return;
+    //Task2
+    to_index(thread_pos, out_shape, out_index, out_shape_size);
+    //Task3
+    int out_pos = index_to_position(out_index, out_strides, out_shape_size);
+    //Task4
+    broadcast_index(out_index, out_shape, a_shape, a_index, out_shape_size, a_shape_size);
+    //Task5
+    int a_pos = index_to_position(a_index, a_strides, a_shape_size);
+    //Task6
+    broadcast_index(out_index, out_shape, b_shape, b_index, out_shape_size, b_shape_size);
+    //Task7
+    int b_pos = index_to_position(b_index, b_strides, b_shape_size);
+    //Task8
+    out[out_pos] = fn(fn_id, a_storage[a_pos], b_storage[b_pos]);
+    //assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
 
