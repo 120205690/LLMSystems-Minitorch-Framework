@@ -242,10 +242,41 @@ __global__ void MatrixMultiplyKernel(
 
     //Task1
     
+    int bx = blockIdx.x;  int by = blockIdx.y;
+    int ty = threadIdx.x;  int tx = threadIdx.y;
+
+    int col = blockDim.y*by + tx;
+    int row = blockDim.x*bx + ty;
+    
+    int ndims = 3;
+
+    //Task3
+    int width = a_shape[2];
+    
+    float result = 0;
+    for(int ph = 0; ph<(width-1+TILE)/TILE; ++ph){
+      int a_index[3] = {batch, row, ph*TILE + tx};
+      int b_index[3] = {batch, ph*TILE + ty, col};
+      int a_pos = index_to_position(a_index, a_strides, ndims);
+      int b_pos = index_to_position(b_index, b_strides, ndims);
+
+      a_shared[ty][tx] = a_storage[a_pos];
+      b_shared[ty][tx] = b_storage[b_pos];
+      __syncthreads();
+      for(int k=0; k<TILE; k++){
+        result += a_shared[ty][k]*b_shared[k][tx];
+      }
+      __syncthreads();
+    }
+  if (row>=out_shape[1] or col>=out_shape[2]) return;
+
+    int out_index[3] = {batch, row, col};
+    int out_pos = index_to_position(out_index, out_strides, ndims);
+    out[out_pos] = result;
+
     //assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
-
 
 __global__ void mapKernel(
     float* out, 
@@ -299,7 +330,7 @@ __global__ void mapKernel(
     //Task 1
     int position = blockIdx.x*blockDim.x + threadIdx.x;
     if (position >= out_size) return;
-    //Task 2
+
     to_index(position, out_shape, out_index, shape_size);
     //Task 3
     broadcast_index(out_index, out_shape, in_shape, in_index, shape_size, shape_size);
